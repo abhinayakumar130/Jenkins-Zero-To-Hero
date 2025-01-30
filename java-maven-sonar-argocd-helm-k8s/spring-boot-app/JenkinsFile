@@ -1,7 +1,7 @@
 pipeline {
   agent {
     docker {
-        image 'abhinayakumar/maven-abhinaya-docker-agent:v1'
+        image 'maven:3.8.8-eclipse-temurin-17'
         args '--user root -v /var/run/docker.sock:/var/run/docker.sock' // mount Docker socket to access the host's Docker daemon
     }
   }
@@ -31,7 +31,7 @@ pipeline {
     }
     stage('Build and Push Docker Image') {
     environment {
-        DOCKER_IMAGE = "abhinayakumar/ultimate-cicd:${BUILD_NUMBER}"
+        DOCKER_IMAGE = "abhinayakumar/ultimate-cicd:latest" // Fixed value without extra space
         REGISTRY_CREDENTIALS = credentials('docker-cred')
     }
     steps {
@@ -39,13 +39,11 @@ pipeline {
             // Build the Docker image
             sh 'cd java-maven-sonar-argocd-helm-k8s/spring-boot-app && docker build -t ${DOCKER_IMAGE} .'
 
-            // Log in to Docker registry using credentials
-            withCredentials([usernamePassword(credentialsId: 'docker-cred', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASSWORD')]) {
-                sh "docker login -u $DOCKER_USER -p $DOCKER_PASSWORD"
+            // Log in to Docker registry and push image securely
+            docker.withRegistry('https://index.docker.io/v1/', 'docker-cred') {
+                // Push the image to Docker Hub
+                sh "docker push ${DOCKER_IMAGE}"
             }
-            
-            // Push the image to Docker Hub
-            sh "docker push ${DOCKER_IMAGE}"
         }
     }
 }
